@@ -1,0 +1,18 @@
+---
+title: "Untitled"
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+## Read my Panel A csv file
+
+```{r}
+myPanelAData <- read_csv("data/panel-A.csv")
+```
+```{r}
+glimpse(myPanelAData)
+```
+

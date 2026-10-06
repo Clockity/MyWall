@@ -1,0 +1,96 @@
+---
+title: "panelA"
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(mosaic) # Our all-in-one package
+library(skimr) # Looking at data
+library(janitor) # Clean the data
+library(naniar) # Handle missing data
+library(visdat) # Visualise missing data
+library(tinytable) # Printing Static Tables for our data
+library(DT) # Interactive Tables for our data
+library(crosstable) # Multiple variable summaries
+```
+
+```{r}
+glimpse(panelAdata)
+
+```
+
+```{r}
+inspect(panelAdata)
+```
+
+```{r}
+skim(panelA_mod)
+```
+
+```{r}
+datatable(panelAdata) 
+```
+
+```{r}
+panelAdata |> ggplot(aes(smok)) + geom_bar (color="blue", fill=rgb(0.1,0.4,0.5,0.7) )
+```
+
+```{r}
+panelAdata |> gf_point(sys ~ dia, color = ~ smok)
+```
+
+```{r}
+panelAdata |> gf_point(sys ~ dia, color = ~ age)
+```
+
+```{r}
+panelAdata |> gf_histogram(~ hdl, fill = ~ smok, position = "dodge", bins=25) |> gf_facet_wrap(~ factor(sex))
+```
+
+```{r}
+panelAdata |> gf_histogram(~ ldl, fill = ~ smok, position = "dodge", bins=25) |> gf_facet_wrap(~ factor(sex))
+
+```
+
+```{r}
+#Do smokers and non-smokers in this group have different HDL and LDL levels, for men and women?
+panelAdata |>
+  pivot_longer(c(hdl, ldl), names_to = "cholesterol", values_to = "level") |>
+  gf_histogram(~ level, fill = ~ smok, alpha = 0.5) |>
+  gf_facet_grid(cholesterol ~ factor(sex))
+#how much smoking matters - NEGATIVE
+```
+
+```{r}
+#alcohol consumption and smoking has a correlation with cholestrol levels in blood?
+panelAdata |> gf_histogram(choles~ alco, color = ~ smok, position = "dodge", bins=25) #|> gf_facet_wrap(~ factor(sex))
+```
+
+```{r}
+panelAdata |> gf_point(age ~ Uric, color = ~ sex)
+```
+
+```{r}
+panelAdata |>
+  pivot_longer(c(choles, trig), names_to = "cholesterol", values_to = "level") |>
+  gf_histogram(~ level, fill = ~ smok, alpha = 0.5) |>
+  gf_facet_grid(cholesterol ~ factor(sex))
+```
+
+```{r}
+panelAdata |> gf_histogram(choles~ trig, color = ~ smok, position = "dodge", bins=25) |> gf_facet_wrap(~ factor(sex))
+
+```
+
+```{r}
+panelA_mod <- panelAdata |> mutate(sex = as.factor(sex), smok = as.factor(smok))
+```
+
+```{r}
+glimpse(panelA_mod)
+```
+
+```{r}
+panelA_mod |> gf_point(hdl ~ alco) |> gf_smooth(method = "lm")
+```
