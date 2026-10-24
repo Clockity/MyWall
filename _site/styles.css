@@ -1,1 +1,30 @@
 /* css styles */
+
+/* Load the same Google Fonts the graphs use, plus a code font */
+@import url('https://fonts.googleapis.com/css2?family=Modak&family=Fredoka:wght@400;600&family=Quicksand:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+/* All normal text (paragraphs, lists) */
+body {
+  font-family: 'Quicksand', sans-serif;
+}
+
+/* Section headings (Spine, Introduction, Panel A, 1. See the table...) - same size, new font */
+h1, h2, h3 {
+  font-family: 'Modak', cursive;
+}
+
+/* Page title (the big title at the top of each page) - a little bigger */
+.title {
+  font-family: 'Modak', cursive;
+  font-size: 3.2rem;
+}
+
+/* Page subtitle ("Studio wall") */
+.subtitle {
+  font-family: 'Fredoka', sans-serif;
+}
+
+/* Code: keep it monospace so it lines up, but in a friendlier font */
+pre, code {
+  font-family: 'Fira Code', monospace;
+}

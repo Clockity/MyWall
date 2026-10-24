@@ -1,7 +1,7 @@
 ---
 title: "Group 2 — Risk factors"
 subtitle: "Studio wall"
-author: "Siva, Shaariq and Taniska"
+author: "Siva, Rachana and Taniska"
 format:
   html:
     toc: true
@@ -21,6 +21,10 @@ This folder is ours for the ten days. Three tables, three shapes.
 - **Panel B** (`panel-B.csv`) — Scottish Health Survey 1998: sex, social class, smoking, diagnosed CVD. `area` is a code, not a map.
 - **Panel C** (`panel-C.csv`) — SOWC child / infant / neonatal mortality by country. Join by country name.
 
+We load from this folder:
+
+{{< include _setup.qmd >}}
+
 If a brick needs a histogram, it lives in A. If it needs a mosaic, it lives in B.
 
 ```{r}
@@ -31,7 +35,10 @@ library(tidyverse)
 library(mosaic)
 library(skimr)
 library(ggformula)
-
+library(leaflet)
+library(sf)
+library(rnaturalearth)
+library(leaflet)
 A <- read_csv("data/panel-A.csv")
 B <- read_csv("data/panel-B.csv")
 ```
@@ -555,7 +562,7 @@ B_mod |> gf_boxplot(carstair ~ sc, fill = ~ sc) |>
           x = "Social class", y = "Carstairs score (higher = more deprived)")
 
 vcd::structable(deprivation ~ sc, data = B_mod) |>
-  vcd::mosaic(shade = TRUE, main = "Higher classes live in less deprived areas")
+  vcd::mosaic(shade = TRUE, main_gp = grid::gpar(fontfamily = "Modak"), main = "Higher classes live in less deprived areas")
 
 B_mod |> group_by(sc) |> summarise(mean_carstair = mean(carstair), n = n())
 aov(carstair ~ sc, data = B_mod) |> summary()
@@ -585,7 +592,7 @@ B_mod |> gf_boxplot(carstair ~ cvd, fill = ~ cvd) |>
           x = "CVD", y = "Carstairs score (higher = more deprived)")
 
 vcd::structable(cvd ~ deprivation, data = B_mod) |>
-  vcd::mosaic(shade = TRUE, main = "A little more CVD in more deprived areas")
+  vcd::mosaic(shade = TRUE, main_gp = grid::gpar(fontfamily = "Modak"), main = "A little more CVD in more deprived areas")
 
 mosaic::t_test(carstair ~ cvd, data = B_mod)
 ```
@@ -598,7 +605,7 @@ Prediction missed, in direction. It's not inverse: **more** deprivation goes wit
 #| label: sc-cvd
 
 vcd::structable(cvd ~ sc, data = B_mod) |>
-  vcd::mosaic(shade = TRUE, main = "CVD barely changes across social class")
+  vcd::mosaic(shade = TRUE, main_gp = grid::gpar(fontfamily = "Modak"), main = "CVD barely changes across social class")
 
 B_mod |> group_by(sc) |> summarise(pct_cvd = mean(cvd == "yes"), n = n())
 mosaic::xchisq.test(mosaic::tally(cvd ~ sc, data = B_mod))
@@ -612,7 +619,7 @@ Class does talk to smoking, though:
 #| label: sc-smoke
 
 vcd::structable(smoke ~ sc, data = B_mod) |>
-  vcd::mosaic(shade = TRUE, main = "Lower classes smoke more heavily")
+  vcd::mosaic(shade = TRUE, main_gp = grid::gpar(fontfamily = "Modak"), main = "Lower classes smoke more heavily")
 ```
 
 48% of class I–II have never smoked, compared to 35% of class IV–V. Heavy smokers: 9% vs 19%.
@@ -627,7 +634,7 @@ Our mosaics and test:
 vcd::structable(smoke ~ cvd, data = B_mod) |> vcd::mosaic()
 vcd::structable(smoke ~ cvd, data = B_mod) |> vcd::mosaic(type = "expected")
 vcd::structable(smoke ~ cvd, data = B_mod) |>
-  vcd::mosaic(shade = TRUE, main = "Ex-smokers stand out with the most CVD")
+  vcd::mosaic(shade = TRUE, main_gp = grid::gpar(fontfamily = "Modak"), main = "Ex-smokers stand out with the most CVD")
 
 B_mod |> group_by(smoke) |> summarise(pct_cvd = mean(cvd == "yes"), n = n())
 mosaic::xchisq.test(mosaic::tally(smoke ~ cvd, data = B_mod))
@@ -665,15 +672,317 @@ Ex-smokers are older (average 52, compared to 42–45 for the other groups), and
 - The deprivation groups are cut-offs we chose (equal thirds).
 - Kit table we refused to abuse: `sc` and `area` were never averaged or treated as numbers, and `area` was never used as a map.
 
+# Panel C — place
+
+> *lifeExp / gdpPercap / pop by country, all continents, 2007. Join on `country`.*
+
+### 1. See the table
+
+```{r}
+#| label: load-panel-C-data
+
+C <- read_csv("data/panel-C.csv")
+```
+
+```{r}
+#| label: inspect-panel-C-data
+
+glimpse(C)
+skim(C)
+inspect(C)
+```
+
+Our Panel-C data has:
+
+- 142 rows and 6 columns. One case = one country, in 2007.
+- `country`: Qualitative, categorical, 142 levels. Encoded <chr>, to be mutated
+- `continent`: Qualitative, categorical, 5 levels: Africa (52), Asia (33), Europe (30), Americas (25), Oceania (2). Encoded <chr>, to be mutated
+- `year`: Quantitative, numeric, but only one value (2007), so it can't show change over time
+- `lifeExp`: Quantitative, numeric. Mean 67.0, sd 12.1, min 39.6, median 71.9, max 82.6. Skewed left.
+- `pop`: Quantitative, numeric. Median 10.5 million, max 1,319 million (China). Extremely skewed right.
+- `gdpPercap`: Quantitative, numeric. Mean 11,680, median 6,124, min 278, max 49,357. Skewed right.
+
+There is no missing data.
+
+Row 1 is Afghanistan, in Asia: in 2007 it had a life expectancy of 43.8 years, a population of about 31.9 million and a GDP per capita of about 975.
+
+```{r}
+#| label: mutate-C-factors
+
+Cmod <- C |> mutate(country = as.factor(country), continent = as.factor(continent))
+glimpse(Cmod)
+```
+
+### 2. Ask
+
+Possibly can answer:
+
+1.  Does higher GDP mean more life expectancy? (Main Character Question)
+2.  How is population spread across the continents?
+3.  Where on the map are life expectancy, population and GDP per capita highest and lowest?
+
+Possibly cannot answer:
+
+1.  Why are some countries richer, or longer-lived, than others? (No causes in the data)
+2.  Has any of this changed over time? (Only one `year`)
+
+### 3. Choose a mark
+
+1.  Scatter plot for `lifeExp` vs `gdpPercap` (Quant + Quant), with a log scale because `gdpPercap` is so skewed, and a correlation test beside it
+2.  Column chart for `pop` by `continent` (Quant + Qual)
+3.  Maps (`gf_sf`) for each Quant variable, to see *where* the high and low countries are
+
+### 4. Predict
+
+1. I think more populous countries have higher gdp per capita.
+2. I think a few rich countries (USA, Canada) will sit far above the rest on `gdpPercap`.
+3. I think richer countries will have higher `lifeExp`.
+4. I think the maps will show North America high on `gdpPercap` and `lifeExp`, and Latin America lower.
+
+### 5. Make
+
+These are charts we tried first. They don't show up in the render: labelling all 142 countries made them too crowded to read.
+
+```{r}
+#| label: panel-C-charts-we-tried
+#| eval: false
+#| echo: true
+
+ggplot(Cmod, aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(color = continent), size = 3) +
+  geom_text(aes(label = country), size = 2.5, vjust = -0.5) +
+  labs(title = "GDP per Capita vs Life Expectancy",
+       x = "GDP per Capita", y = "Life Expectancy", color = "Continent") +
+  theme_minimal()
+
+ggplot(Cmod, aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(color = continent), size = 3) +
+  geom_text(aes(label = country), size = 2.5, vjust = -0.5) +
+  scale_x_log10() +
+  labs(title = "GDP per Capita vs Life Expectancy",
+       x = "GDP per Capita (log scale)", y = "Life Expectancy", color = "Continent") +
+  theme_minimal()
+```
+
+**Question 1 (Main Character): does higher GDP mean more life expectancy?**
+
+```{r}
+#| label: question-1-gdp-lifeexp
+
+Cmod |>
+  gf_point(lifeExp ~ gdpPercap, color = ~ continent) |>
+  gf_refine(scale_x_log10()) |>
+  gf_labs(
+    title = "Richer countries tend to live longer",
+    x = "GDP per Capita (log scale)",
+    y = "Life Expectancy"
+  )
+
+mosaic::cor.test(lifeExp ~ gdpPercap, data = Cmod)
+```
+
+**Question 2: how is population spread across the continents?**
+
+```{r}
+#| label: question-2-pop
+
+Cmod |>
+  gf_col(pop ~ continent, fill = ~ continent) |>
+  gf_labs(title = "Asia holds far more people than any other continent",
+          x = NULL, y = "Population (2007)")
+```
+
+**Question 3: where on the map?**
+
+First, join the data to country shapes from `rnaturalearth`. "United States" is spelled differently in the two tables, so we fix it before joining.
+
+```{r}
+#| label: get-map-data
+
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+worldSelect <- world |> dplyr::select(name, geometry)
+```
+
+Countries whose names still don't match (these will show up blank on the maps):
+
+```{r}
+#| label: unmatched-countries
+
+C |>
+  mutate(country = if_else(country == "United States", "United States of America", country)) |>
+  anti_join(worldSelect, by = c("country" = "name")) |>
+  select(country)
+```
+
+```{r}
+#| label: join-data
+
+Cmodded <- C |>
+  mutate(country = if_else(country == "United States", "United States of America", country)) |>
+  left_join(worldSelect, by = c("country" = "name")) |>
+  mutate(country = as.factor(country), continent = as.factor(continent)) |>
+  sf::st_as_sf()
+```
+
+```{r}
+#| label: maps-C
+
+Cmodded |> gf_sf(geometry = ~ geometry, fill = ~ lifeExp, color = ~ continent) |>
+  gf_labs(title = "Life expectancy is lowest across Africa and in Afghanistan")
+Cmodded |> gf_sf(geometry = ~ geometry, fill = ~ pop, color = ~ continent) |>
+  gf_labs(title = "China and India have by far the most people")
+Cmodded |> gf_sf(geometry = ~ geometry, fill = ~ gdpPercap, color = ~ continent) |>
+  gf_labs(title = "GDP per capita is highest in North America, Europe and Australia")
+```
+
+### 6. Say
+
+1.  Of all the countries we have, life expectancy is the worst in African countries (Swaziland is lowest, at 39.6 years) and Afghanistan.
+2.  The highest population countries are China and India.
+3.  GDP per capita is highest in North America, Europe and Australia, but the top five also include Kuwait and Singapore in Asia (Norway is first).
+
+### 7. Limit
+
+- Countries whose names didn't match between the two tables are blank on the maps (listed above).
+
+# Panel D — Erin Brockovich / Hinkley
+
+### 1. See the table
+
+```{r}
+#| label: panel-D-plume
+
+plume <- tribble(
+  ~point, ~lat,  ~lon,
+  1,      34.90356, -117.15949,
+  2,      34.90087, -117.16360,
+  3,      34.89731, -117.16635,
+  4,      34.88916, -117.16166,
+  5,      34.89030, -117.15393,
+  6,      34.89710, -117.15217,
+  7,      34.90192, -117.15548
+)
+```
+
+```{r}
+families <- tribble(
+  ~family,    ~lat,     ~lon,       ~inside_plume, ~water_source,  ~illness,     ~pge_offered_to_buy, ~offered_med_assist, ~joined_lawsuit, ~colour,
+  "Jensen",   34.89766, -117.16389, "yes",         "private well", "tumours",    "yes",               "yes",               "yes",           "yellow",
+  "Robinson", 34.89657, -117.15685, "yes",         "private well", "nosebleeds", "yes",               "yes",               "yes",           "yellow",
+  "Brown",    34.89179, -117.16029, "yes",         "private well", "headaches",  "no",                "yes",               "yes",           "white",
+  "Duncan",   34.90403, -117.15467, "no",          "private well", "none",       "no",                "no",                "no",            "white",
+  "Jones",    34.90703, -117.16522, "no",          "town supply",  "none",       "no",                "no",                "no",            "white"
+)
+```
+
+```{r}
+#| label: panel-D-inspect
+glimpse(plume)
+glimpse(families)
+inspect(families)
+```
+
+The Panel-D data is imaginative, with parts from the film and the brief. It has two tibbles.
+
+**`plume`** (the shape of the contaminated groundwater):
+
+- 7 rows and 3 columns.
+- `point`: Encoded as a number, but it's really just the **order** of the corners, so no averaging it.
+- `lat`: Quantitative, numeric (latitude)
+- `lon`: Quantitative, numeric (longitude)
+
+**`families`** (the households):
+
+- 5 rows and 10 columns. One case = one row
+- `lat`, `lon`: Quantitative, numeric (where the house is)
+- `family`: Qualitative, 5 names: Jensen, Robinson, Brown, Duncan, Jones
+- `inside_plume`: Qualitative, 2 levels: "yes" (3), "no" (2)
+- `water_source`: Qualitative, 2 levels: "private well" (4), "town supply" (1)
+- `illness`: Qualitative, 4 levels: "tumours", "nosebleeds", "headaches", "none" (2)
+- `pge_offered_to_buy`: Qualitative, 2 levels: "yes" (2), "no" (3)
+- `offered_med_assist`: Qualitative, 2 levels: "yes" (3), "no" (2)
+- `joined_lawsuit`: Qualitative, 2 levels: "yes" (3), "no" (2)
+- `colour`: Qualitative, 2 levels: "yellow" (2), "white" (3). [not a fact about the families; rather a qual column added to see the dot colors]
+
+There is no missing data, because I made it up.
+
+Row 4 is the Duncan family, who live just outside the plume, drink from a private well, have no illness, weren’t offered a buyout or medical help by PG&E, and didn’t join the lawsuit.
+
+### 2. Ask
+
+CAN:
+1. Do the families living inside the plume have illnesses and join the lawsuit, while the ones outside don't?
+2. Which families did PG&E approach with a buyout or medical help, and did they all live inside the plume?
+
+CAN'T:
+1. How much chromium-6 was in each house’s water? (no measurements)
+2. Did the families get ill before or after drinking the water? (no dates)
+
+### 3. Choose a mark
+
+1.  Base map: Esri.WorldImagery because it allows a better view at houses and living spaces
+2.  Plume: polygon, because it’s the area the contaminated groundwater spread through
+3.  Families: dots coloured by pge_offered_to_buy because affected families are inside the plume anyway, and 1 of 3 families inside wasn't offered to be bought 
+4.  Popups: other qual variables like what illness they had, their water source, and whether they joined the lawsuit because the map shouldnt be overcrowded
+5. Legend: to explain what the dot colours mean (offered a buyout: yes / no)
+
+### 4. Predict
+
+1.  I think all families inside the plume will be ill, because they're consuming the contaminated groundwater, as opposed to families outside the plume.
+2.  I assume PG&E would only approach families inside the plume with a buyout or medical help, because the families outside remain unaffected.
+
+### 5. Make
+
+```{r}
+#| label: panel-D-map
+#| fig-cap: "Every family inside the plume got ill. Only some were offered a way out. All families lived in the same town, but only those inside the plume faced dire consequences of hexavalent chrommium contamination by PG&E"
+
+leaflet() |>
+  addProviderTiles("Esri.WorldImagery") |>
+  setView(lng = -117.1595, lat = 34.8965, zoom = 14) |>
+  addPolygons(data = plume, lng = ~lon, lat = ~lat,
+              color = "red",
+              label = "Chromium-6 plume (hypothetical)") |>
+  addMarkers(lng = -117.15949, lat = 34.90357,
+             label = "PG&E Hinkley Compressor Station") |>
+  addCircleMarkers(data = families, lng = ~lon, lat = ~lat,
+                   radius = 8,
+                   color = families$colour,
+                   label = ~family,
+                   popup = paste("<strong>", families$family, "</strong>", "<br>",
+                                 "Illness:", families$illness, "<br>",
+                                 "Water source:", families$water_source, "<br>",
+                                 "Joined lawsuit:", families$joined_lawsuit)) |>
+  addLegend(colors = c("yellow", "white", "red"),
+            labels = c("Offered buyout", "Not offered buyout", "Plume"))
+```
+
+
+### 6. Say
+
+1.  Prediction 1 was right: all three families inside the plume (Jensen, Robinson, Brown) suffered from an illness, since they were drinking contaminated groundwater, while the two families outside the plume (Duncan, Jones) didn't.
+2.  Prediction 2 was mostly right: PG&E only approached families inside the plume. All three were offered medical assistance, but only two were offered a buyout. The Browns were left out, even though they lived inside the plume.
+
+### 7. Limit
+
+-The plume: The dimensions are inspired from the movie Erin Brockovich, where the plume is described to be roughly two miles long and nearly a mile wide (the plume here, however, is only about a mile long).
+-The families: 2 of the families (Jensen and Robinson) are part of the movie. The other 3 (Brown, Duncan, Jones) are hypothetical and made-up. Most of the data is made-up.
+-The Qual variables (illness, buyout, medical help, lawsuit): All these variables come from the movie Erin Brockovich, and the values for these are true to the movie for Jensen and Robinson, but made-up for the rest 3 families.
+-There are only 5 families in this. They cannot tell you the story of the entire town; they can only provide a brief idea.
+-There are no chromium measurements, dates, ages, or how long each family lived there.
+-Can this map show that the chromium caused the illnesses? Not really. Only that the families inside the plume were ill.
+
 # Conclusion
 
-- **The spine so far:** Bodies carry risk differently by sex (A), class talks to *where people live* and *how much they smoke* more than to heart disease directly (B), and smoking keeps refusing to behave the way we predicted in both panels.
-- **The questions we will defend in ninety seconds:**
-    - Panel A: Do smokers and non-smokers carry cholesterol differently, and why do male smokers look *healthier*?
-    - Panel B: Does smoking lower your risk of CVD? (No: ex-smokers have the most CVD, and they're also the oldest.)
-- **What we will not claim:** that smoking is good for cholesterol or the heart, that social class causes CVD, or that anything here causes heart disease.
-- **Which lines were human, which were machine:**
-    - Human: the questions in both panels, the predictions, the first HDL/LDL histograms, the sys/dia scatter, using `facet_wrap()` by sex, spotting the "how many cigarettes" limit, the helper columns and cut-offs, the violins and `tally()` counts, the cholesterol-by-sex histogram and t-test from class, the `carstair` histogram faceted by `smoke`, and the `smoke × cvd` mosaics and chi-square test.
-    - Machine (AI-assisted): the `pivot_longer()` combined chart,, formatting `index.qmd` into the template layout, merging drafts into one file, formatting Panel B, the deprivation groups (`cut_number()`), the age check for ex-smokers, and checking the numbers in both panels.
-- **Limits:** one snapshot each, smoking is yes / no only in A and in loose groups in B, only 36 female smokers in A, age tangled up with smoking in B, `carstair` describes the area not the person, unknown sampling.
-- **Gift for the steal-this strip:** `pivot_longer()` to put two measures side by side in one faceted chart, helper columns with cut-offs stated out loud, and `fct_relevel()` / `fct_recode()` to put categories in a sensible order with readable names.
+- **The spine, after four panels:** Bodies carry risk differently depending on who you are (A). Class shows up in where people live and how much they smoke, more than in heart disease itself (B). Money and long lives tend to go together around the world (C). And in Hinkley, where you lived decided what you drank (D). Oh, and smoking? It refused to behave the way we expected, every single time (Marlboro is laughing in the corner).
+- **Can be defended:**
+    - A: Why do male smokers here look *healthier* on cholesterol? We still don't fully know, but it isn't just the alcohol.
+    - B: Does smoking lower your risk of CVD? Nope. Ex-smokers have the most CVD, but they're also the oldest.
+    - C: Do richer countries live longer? Mostly, yes (r = 0.68).
+    - D: Did living inside the plume change what happened to you? In our map, yes (but our map is made up).
+- **What we won't claim:** that smoking is good for you (please don't), that class or money *causes* anything, or that our Hinkley map is real.
+- **Human vs machine:**
+    - Human: the questions and predictions in all four panels, the first HDL/LDL histograms, the sys/dia scatter, `facet_wrap()` by sex, the "how many cigarettes" limit, the helper columns and cut-offs, the violins and `tally()` counts, the cholesterol t-test from class, the `carstair` histogram and the `smoke × cvd` mosaics, Panel C's scatter, population chart and maps (and the notes on what they show), drawing the plume and placing the houses in Google Maps for Panel D, picking the families and their Qual variables, and Panel D's See / Ask / Mark / Predict / Say / Limit.
+    - Machine (AI-assisted): the `pivot_longer()` chart, formatting and merging our drafts into the template, formatting Panel B, the deprivation groups (`cut_number()`), the age check for ex-smokers, checking numbers across the panels, the font and theme setup, tidying Panel C (the USA name fix, the unmatched-countries list, chart titles)
+- **Limits:** every panel is one snapshot in time. Smoking is just yes / no in A, and loose groups in B. Some groups are tiny (36 female smokers in A, 5 made-up families in D). Age is tangled up with smoking in B. `carstair` is about the area, not the person. Some countries are blank on the Panel C maps. And Panel D is hypothetical from start to finish.
+- **Gift for the steal-this strip:** helper columns with the cut-offs said out loud (like `high_bp = sys >= 140`), and building your own tibble with `tribble()` and dropping it straight onto a leaflet map.
