@@ -47,31 +47,37 @@ ggplot2::theme_set(
 ## Set the ggplot theme
 theme_madhatter <- function(){ 
 
-    theme_bw(base_size = 10) + # Base Theme, Black-White
+    theme_bw(base_size = 10) +
     
-    theme_sub_axis(title = element_text(family = "Modak", 
-                                       size = 8),
-                   text = element_text(family = "Modak", 
-                                       size = 6)) + 
+    theme_sub_axis(title = element_text(family = "Modak", size = 8, colour = "#2b2b2b"),
+                   text = element_text(family = "Modak", size = 6, colour = "#2b2b2b")) + 
     
-    theme_sub_legend(text = element_text(family = "Modak", 
-                                         size = 6),
-                     title = element_text(family = "Quicksand", 
-                                          size = 8)) + 
+    theme_sub_legend(text = element_text(family = "Modak", size = 6),
+                     title = element_text(family = "Quicksand", size = 8),
+                     background = element_rect(fill = "#FFF0F5", colour = NA)) + 
     
-    theme_sub_plot(title = element_text(family = "Modak", 
-                                        size = 14),
+    theme_sub_plot(title = element_text(family = "Modak", size = 14, colour = "#E60033"),
                    title.position = "plot",
-                   subtitle = element_text(family = "Fredoka", 
-                                           size = 10),
-                   caption = element_text(family = "Quicksand", 
-                                          size = 6),
-                   caption.position = "plot")
+                   subtitle = element_text(family = "Fredoka", size = 10, colour = "#d6336c"),
+                   caption = element_text(family = "Quicksand", size = 6),
+                   caption.position = "plot",
+                   background = element_rect(fill = "#FFF0F5", colour = NA)) +
     
+    theme_sub_panel(background = element_rect(fill = "white", colour = NA),
+                    border = element_rect(fill = NA, colour = "#2b2b2b", linewidth = 0.8),
+                    grid.major = element_line(colour = "#FFD1DC", linewidth = 0.3),
+                    grid.minor = element_blank()) +
+    
+    theme_sub_strip(background = element_rect(fill = "#FFB6C8", colour = "#2b2b2b"),
+                    text = element_text(family = "Fredoka", size = 8))
 }
 
 ## Set the theme for all plots
 ggplot2::theme_set(theme_madhatter())
+## Hello Kitty-ish colours for bars, boxes, points etc.
+kitty <- c("#E60033", "#FFB6C8", "#FFD700", "#2b2b2b", "#87CEEB", "#d6336c")
+options(ggplot2.discrete.fill = kitty,
+        ggplot2.discrete.colour = kitty)
 
 ## Update the fonts for geoms as well!
 ## Use available fonts in ggplot label and text within the ggplot geoms 
