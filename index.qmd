@@ -709,8 +709,8 @@ inspect(C)
 Our Panel-C data has:
 
 - 142 rows and 6 columns. One case = one country, in 2007.
-- `country`: Qualitative, categorical, 142 levels. Encoded <chr>, to be mutated
-- `continent`: Qualitative, categorical, 5 levels: Africa (52), Asia (33), Europe (30), Americas (25), Oceania (2). Encoded <chr>, to be mutated
+- `country`: Qualitative, categorical, 142 levels. Encoded `<chr>`, to be mutated
+- `continent`: Qualitative, categorical, 5 levels: Africa (52), Asia (33), Europe (30), Americas (25), Oceania (2). Encoded `<chr>`, to be mutated
 - `year`: Quantitative, numeric, but only one value (2007), so it can't show change over time
 - `lifeExp`: Quantitative, numeric. Mean 67.0, sd 12.1, min 39.6, median 71.9, max 82.6. Skewed left.
 - `pop`: Quantitative, numeric. Median 10.5 million, max 1,319 million (China). Extremely skewed right.
@@ -1016,7 +1016,7 @@ skim(allowance)
 
 Point at a row: Row 1 is respondent 1, a guy who gets an allowance of 5 (thousand) a month.
 
-<respondent> is just an ID number, <gender> is Qual (M / F) and <allowance> is Quant.
+`respondent` is just an ID number, `gender` is Qual (M / F) and `allowance` is Quant.
 
 The gender variable is a character variable and we need to mutate it into factor.
 ```{r}
@@ -1055,7 +1055,7 @@ skim(relationship)
 
 Point at a row: Row 1 is respondent 1, an SMI student who is not in a relationship.
 
-<respondants> is just an ID number, <department> is Qual (SMI / MIT) and <relationship_status> is Qual (Yes / No).
+`respondants` is just an ID number, `department` is Qual (SMI / MIT) and `relationship_status` is Qual (Yes / No).
 
 The relationship_status and department variable is a character variable and we need to mutate it into factor.
 ```{r}
@@ -1079,7 +1079,7 @@ Limit: 60 students, 30 from each campus. We only looked at a bar graph and didn'
 
 ## Hunch 3 - there are more introverts in SMI than in MIT.
 
-This group had collected the personality types of people from both SMI and MIT. Each person is marked E (extrovert) or I (introvert) in the <social-orientation> column, which is all we need for this hunch.
+This group had collected the personality types of people from both SMI and MIT. Each person is marked E (extrovert) or I (introvert) in the `social-orientation` column, which is all we need for this hunch.
 
 ```{r}
 data <- read_csv("data/introextro.csv")
@@ -1134,7 +1134,7 @@ skim(ai)
 
 Point at a row: Row 1 is a boy in an art program who does not believe in AI.
 
-<count> is just an ID number, and <gender>, <program>, <AI_belief> are characters, which get mutated into factors.
+`count` is just an ID number, and `gender`, `program`, `AI_belief` are characters, which get mutated into factors.
 
 ```{r}
 ai <- ai %>%
@@ -1199,7 +1199,7 @@ skim(tattoo)
 
 Point at a row: Row 1 is a guy who has tattoos and thinks tattoos make people more attractive.
 
-<Respondents> is just an ID number, and <Gender>, <Has_tattoos?>, <Opinion> are characters, which get mutated into factors. <Has_tattoos?> has a question mark in its name, so it needs backticks in R.
+`Respondents` is just an ID number, and `Gender`, `Has_tattoos?`, `Opinion` are characters, which get mutated into factors. `Has_tattoos?` has a question mark in its name, so it needs backticks in R.
 
 ```{r}
 tattoo <- tattoo %>%
@@ -1281,9 +1281,9 @@ glimpse(hunch1)
 
 Point at a row: Row 1 is student 1, who gave Friends a 7, didn't rate House, and gave Modern Family a 9.
 
-<students> is just an ID number. <friends>, <house> and <modern_family> come in as dates. `clean_names()` makes the column names lowercase with underscores, so "Modern Family" becomes <modern_family>.
+`students` is just an ID number. `friends`, `house` and `modern_family` come in as dates. `clean_names()` makes the column names lowercase with underscores, so "Modern Family" becomes `modern_family`.
 
-Next, we take the day from each date to get the score, then pivot longer so that all the shows are in one column, <show>, and all the scores in another, <scores>.
+Next, we take the day from each date to get the score, then pivot longer so that all the shows are in one column, `show`, and all the scores in another, `scores`.
 
 ```{r}
 #| label: tidy-tv-data
